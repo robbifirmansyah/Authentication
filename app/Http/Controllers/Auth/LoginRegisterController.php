@@ -82,14 +82,24 @@ class LoginRegisterController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect()->route('dashboard')
-                ->withSuccess('You have successfully logged in!');
-        }
 
-        return back()->withErrors([
-            'email' => 'Your provided credentials do not match in our records.'
-        ])->onlyInput('email');
+        // Cek apakah user admin atau bukan
+        if (auth()->user()->level === 'admin') {
+            return redirect()->route('dashboard')
+                ->with('message', 'Anda berhasil login sebagai admin.');
+        } else {
+            // Jika bukan admin, arahkan ke halaman welcome
+            Auth::logout(); // logout user yang bukan admin
+            return redirect()->route('welcome')
+                ->with('error', 'Anda bukan admin.');
+        }
     }
+
+    return back()->withErrors([
+        'email' => 'Your provided credentials do not match our records.'
+    ])->onlyInput('email');
+    }
+
 
     /**
      * Display a dashboard to authenticated users.
@@ -122,4 +132,7 @@ class LoginRegisterController extends Controller
         return redirect()->route('login')
             ->withSuccess('You have logged out successfully!');
     }
+
 }
+
+
