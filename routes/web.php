@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginRegisterController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -24,3 +25,4 @@ Route::get('/admin', function () {
     return view('auth.dashboard')->with('message', 'Anda adalah admin');
 })->middleware(['auth', 'admin']);
 
+Route::resource('/users', UserController::class);

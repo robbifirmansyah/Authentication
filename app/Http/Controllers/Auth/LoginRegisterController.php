@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+
 
 class LoginRegisterController extends Controller
 {
@@ -41,13 +43,24 @@ class LoginRegisterController extends Controller
         $request->validate([
             'name' => 'required|string|max:250',
             'email' => 'required|email|max:250|unique:users',
-            'password' => 'required|min:8|confirmed'
+            'password' => 'required|min:8|confirmed',
+            'photo' => 'image|nullable|max:1999'
         ]);
+
+        if ($request->hasFile('photo')) {
+            $filenameWithExt = $request->file('photo')->getClientOriginalName();    
+            $filename = pathinfo($filenameWithExt, PATHINFO_FILENAME);  
+            $extension = $request->file('photo')->getClientOriginalExtension(); 
+            $fileNameToStore = $filename.'_'.time().'.'.$extension; 
+            $path = $request->file('photo')->storeAs('photos', $fileNameToStore);    
+            } else {$path = null;
+        }
 
         User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password)
+            'password' => Hash::make($request->password),
+            'photo' => $path
         ]);
 
         $credentials = $request->only('email', 'password');
@@ -131,6 +144,18 @@ class LoginRegisterController extends Controller
         $request->session()->regenerateToken();
         return redirect()->route('login')
             ->withSuccess('You have logged out successfully!');
+    }
+
+    public function uploadFile(Request $request)
+    {
+        // Memeriksa apakah ada file yang di-upload
+        if ($request->hasFile('photo')) { // Sesuaikan dengan name="photo" di form
+            // Simpan file dan dapatkan path-nya
+            $path = $request->file('photo')->store('uploads'); // Simpan di folder 'uploads' dalam storage
+            return response()->json(['message' => 'File berhasil di-upload!', 'path' => $path]);
+        } else {
+            return response()->json(['message' => 'Tidak ada file yang di-upload.'], 400);
+        }
     }
 
 }
