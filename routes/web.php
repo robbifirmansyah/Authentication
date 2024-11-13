@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginRegisterController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\GalleryController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,3 +27,5 @@ Route::get('/admin', function () {
 })->middleware(['auth', 'admin']);
 
 Route::resource('/users', UserController::class);
+
+Route::resource('/gallery', GalleryController::class);
