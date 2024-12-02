@@ -116,4 +116,35 @@ class GalleryController extends Controller
 
         return redirect('gallery')->with('success', 'Data berhasil dihapus');
     }
+
+    /**
+     * API: Retrieve a JSON list of galleries with images.
+     * 
+     * @OA\Get(
+     *     path="/api/gallery",
+     *     summary="Get all galleries with pictures",
+     *     description="Retrieve a JSON list of galleries with images.",
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of galleries",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="title", type="string", example="Gallery 1"),
+     *                 @OA\Property(property="description", type="string", example="A beautiful image"),
+     *                 @OA\Property(property="picture", type="string", example="posts_image/image1.jpg")
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function apiGallery()
+    {
+        $galleries = Post::where('picture', '!=', '')->whereNotNull('picture')
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'title', 'description', 'picture']);
+
+        return response()->json($galleries, 200);
+    }
 }
