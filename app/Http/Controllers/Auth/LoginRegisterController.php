@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-
+use App\Jobs\SendMailJob;
+use Illuminate\Support\Facades\Mail; // Import untuk pengiriman email
+use App\Mail\SendEmail; // Import Mail class yang telah dibuat
 
 class LoginRegisterController extends Controller
 {
@@ -39,36 +41,52 @@ class LoginRegisterController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:250',
-            'email' => 'required|email|max:250|unique:users',
-            'password' => 'required|min:8|confirmed',
-            'photo' => 'image|nullable|max:1999'
-        ]);
+{
+    $request->validate([
+        'name' => 'required|string|max:250',
+        'email' => 'required|email|max:250|unique:users',
+        'password' => 'required|min:8|confirmed',
+        'photo' => 'image|nullable|max:1999'
+    ]);
 
-        if ($request->hasFile('photo')) {
-            $filenameWithExt = $request->file('photo')->getClientOriginalName();    
-            $filename = pathinfo($filenameWithExt, PATHINFO_FILENAME);  
-            $extension = $request->file('photo')->getClientOriginalExtension(); 
-            $fileNameToStore = $filename.'_'.time().'.'.$extension; 
-            $path = $request->file('photo')->storeAs('photos', $fileNameToStore);    
-            } else {$path = null;
-        }
-
-        User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'photo' => $path
-        ]);
-
-        $credentials = $request->only('email', 'password');
-        Auth::attempt($credentials);
-        $request->session()->regenerate();
-        return redirect()->route('dashboard')
-            ->withSuccess('You have successfully registered & logged in!');
+    // Memeriksa apakah ada file yang di-upload dan menyimpannya
+    if ($request->hasFile('photo')) {
+        $filenameWithExt = $request->file('photo')->getClientOriginalName();
+        $filename = pathinfo($filenameWithExt, PATHINFO_FILENAME);
+        $extension = $request->file('photo')->getClientOriginalExtension();
+        $fileNameToStore = $filename.'_'.time().'.'.$extension;
+        $path = $request->file('photo')->storeAs('photos', $fileNameToStore);
+    } else {
+        $path = null;
     }
+
+    // Membuat user baru
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'photo' => $path
+    ]);
+
+    // Melakukan login setelah registrasi berhasil
+    $credentials = $request->only('email', 'password');
+    Auth::attempt($credentials);
+
+    // Kirim email notifikasi setelah registrasi berhasil
+    Mail::to($request->email)->send(new SendEmail([
+        'name' => $request->name,
+        'email' => $request->email,
+        'subject' => 'Registration Successful!', // Menambahkan subject
+        'registration_date' => now()->format('Y-m-d H:i:s'),
+    ]));
+
+    // Regenerasi session dan redirect ke dashboard
+    $request->session()->regenerate();
+    return redirect()->route('dashboard')
+        ->withSuccess('You have successfully registered & logged in!');
+}
+
+    
 
     /**
      * Display a login form.
@@ -96,23 +114,22 @@ class LoginRegisterController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-        // Cek apakah user admin atau bukan
-        if (auth()->user()->level === 'admin') {
-            return redirect()->route('dashboard')
-                ->with('message', 'Anda berhasil login sebagai admin.');
-        } else {
-            // Jika bukan admin, arahkan ke halaman welcome
-            Auth::logout(); // logout user yang bukan admin
-            return redirect()->route('welcome')
-                ->with('error', 'Anda bukan admin.');
+            // Cek apakah user admin atau bukan
+            if (auth()->user()->level === 'admin') {
+                return redirect()->route('dashboard')
+                    ->with('message', 'Anda berhasil login sebagai admin.');
+            } else {
+                // Jika bukan admin, arahkan ke halaman welcome
+                Auth::logout(); // logout user yang bukan admin
+                return redirect()->route('welcome')
+                    ->with('error', 'Anda bukan admin.');
+            }
         }
-    }
 
-    return back()->withErrors([
-        'email' => 'Your provided credentials do not match our records.'
-    ])->onlyInput('email');
+        return back()->withErrors([
+            'email' => 'Your provided credentials do not match our records.'
+        ])->onlyInput('email');
     }
-
 
     /**
      * Display a dashboard to authenticated users.
@@ -157,7 +174,4 @@ class LoginRegisterController extends Controller
             return response()->json(['message' => 'Tidak ada file yang di-upload.'], 400);
         }
     }
-
 }
-
-
